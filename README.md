@@ -23,7 +23,7 @@ model invented.
 
 ## Live URL
 
-**[backupbuddyai.streamlit.app(https://backupbuddyai.streamlit.app/)]**
+[backupbuddyai.streamlit.app](https://backupbuddyai.streamlit.app/)
 
 
 ## Features
