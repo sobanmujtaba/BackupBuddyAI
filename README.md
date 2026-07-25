@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Backup Buddy AI
 
 ## What it does and who it's for
@@ -175,3 +176,6 @@ streamlit run app.py
 
 Note: this app will not run on Vercel — Streamlit needs a persistent
 server process, which Vercel's serverless model does not provide.
+=======
+# BackupBuddyAI
+>>>>>>> e1f86727a521c50047246931e876ad0088625673
