@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Backup Buddy AI
 
 ## What it does and who it's for
@@ -26,8 +25,6 @@ model invented.
 
 **[ADD YOUR DEPLOYED STREAMLIT CLOUD URL HERE]**
 
-Test it in an incognito window before submitting, exactly like the repo,
-to confirm it loads with no login prompt.
 
 ## Features
 
@@ -141,17 +138,12 @@ Return answer in exactly these six sections using Markdown headers (##):
   for wiring, installation, or safety-critical decisions — the app says
   this explicitly in its own output.
 
-## Screenshots
-
-**[ADD AT LEAST 3 SCREENSHOTS HERE before submitting: (1) the input panel
-with an AI-extracted appliance list, (2) the results panel showing load,
-runtime, and inverter status, (3) the AI usage plan output.]**
 
 ## How to run locally
 
 ```bash
-git clone <your-repo-url>
-cd backup-buddy-ai
+git clone https://github.com/sobanmujtaba/BackupBuddyAI/
+cd BackupBuddyAI
 pip install -r requirements.txt
 
 # Add your own Gemini API key (get one free at https://aistudio.google.com/apikey)
@@ -160,22 +152,3 @@ cp .streamlit/secrets.toml.example .streamlit/secrets.toml
 
 streamlit run app.py
 ```
-
-## How to deploy (Streamlit Community Cloud)
-
-1. Push this repo to a **public** GitHub repository.
-2. Go to [share.streamlit.io](https://share.streamlit.io), sign in, click
-   "New app", and point it at this repo and `app.py`.
-3. In the app's **Settings -> Secrets**, paste:
-   ```
-   GEMINI_API_KEY = "your-real-key"
-   GEMINI_MODEL = "gemini-2.0-flash"
-   ```
-4. Deploy. Test the live URL in an incognito window, then paste it into
-   the Live URL section above.
-
-Note: this app will not run on Vercel — Streamlit needs a persistent
-server process, which Vercel's serverless model does not provide.
-=======
-# BackupBuddyAI
->>>>>>> e1f86727a521c50047246931e876ad0088625673
