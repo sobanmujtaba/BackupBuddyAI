@@ -2,32 +2,41 @@
 
 ## What it does and who it's for
 
-Backup Buddy AI is a calculator for households in Pakistan (or anywhere
-with regular power outages) who own, or are about to buy, a UPS, battery
-bank, inverter, or solar backup system. Most people size these systems by
-guesswork or by trusting whatever a shopkeeper recommends. This app takes
-a plain description of the appliances someone wants to run, or a manual
-list, and turns it into:
+Backup Buddy AI is a calculator for households in Pakistan (or anywhere with regular power outages) who own, or are about to buy, a UPS, battery bank, inverter, or solar backup system.
 
-- how many watts those appliances draw continuously and at startup surge
-- how many hours the battery bank can actually support that load
-- whether the inverter is big enough, and how much safety margin is left
-- which appliances to switch off first if the runtime target isn't met
-- a plain-language usage plan explaining all of the above
+Instead of relying on guesswork or sales recommendations, the app calculates:
 
-The electrical math (load, runtime, safety margin, load-shedding order) is
-plain deterministic Python, not the AI. The AI is only used to read free
-text and to explain the already-computed numbers. This matters because it
-means the numbers you see are always reproducible and never something the
-model invented.
+- Continuous power consumption of all appliances
+- Startup surge requirements
+- Estimated battery backup time
+- Inverter load utilisation and safety margin
+- Which appliances should be turned off first if the desired runtime cannot be achieved
+- A plain-language explanation and usage plan generated using AI
 
-## Live URL
+All electrical calculations (load, runtime, inverter sizing, safety checks, and load shedding) are performed using deterministic Python logic.
 
+<<<<<<< Updated upstream
 [backupbuddyai.streamlit.app](https://backupbuddyai.streamlit.app/)
+=======
+Artificial Intelligence is **only** used to:
+>>>>>>> Stashed changes
 
+- Extract structured appliance and hardware information from natural language
+- Explain the already-calculated results in plain English
+
+This guarantees that every numerical result is reproducible and never AI-generated.
+
+---
+
+## Live Demo
+
+https://backupbuddyai.streamlit.app/
+
+---
 
 ## Features
 
+<<<<<<< Updated upstream
 - **Two ways to add appliances**: describe them in a sentence ("3 fans, a
   fridge, and WiFi for 4 hours, on a 12V 200Ah battery") or add rows
   manually.
@@ -60,99 +69,161 @@ model invented.
   practical schedule, generated from the calculated numbers.
 - **Charts**: load contribution per appliance, plus live status readouts
   for continuous/surge draw as a percentage of inverter rating.
+=======
+- Add appliances either manually or by describing them in natural language.
+- AI extracts appliance information, battery specifications, and inverter details.
+- Automatically estimates appliance wattages using a reference database where exact values are unavailable.
+- Editable appliance table before calculations.
+- One-click demo scenario that works without an API key.
+- Battery runtime calculator using:
+  - Battery voltage
+  - Battery capacity (Ah)
+  - Number of batteries
+  - Depth of discharge
+  - Inverter efficiency
+- Continuous and surge load calculations.
+- Inverter utilisation and overload detection.
+- Intelligent priority-based load shedding.
+- AI-generated usage and optimisation plan.
+- Interactive load distribution charts.
+- Mobile-friendly responsive interface.
+>>>>>>> Stashed changes
 
-## The AI feature
+---
 
-Two separate AI calls, each with its own system prompt, each Gemini API.
+## AI Features
 
-**1. Appliance + hardware extractor** — turns a sentence into structured
-data, grounded against a reference wattage table so it isn't guessing
-numbers from nothing:
+Backup Buddy AI uses **Groq's OpenAI-compatible API** running:
 
+**Model:** `llama-3.3-70b-versatile`
+
+Two independent AI prompts are used.
+
+### 1. Appliance & Hardware Extraction
+
+Converts free-text descriptions into structured JSON.
+
+Example:
+
+```text
+"3 fans, one refrigerator and Wi-Fi on a 12V 200Ah battery for 4 hours"
 ```
-You extract appliances and hardware specs from plain text.
-Rules:
-1. Match appliances to reference wattages where possible. Set estimated: false.
-2. If unknown, estimate wattage. Set estimated: true.
-3. Priority defaults to "Preferred". Use Essential/Optional based on user urgency.
-4. Extract battery and inverter specs if provided. Otherwise return null.
-5. If solar panel array capacity (DC watts) is specified but the inverter AC rating is missing, estimate the inverter_rating by dividing the total solar capacity by 1.20 (assuming a standard 1.15 to 1.25 Inverter Loading Ratio / DC-to-AC ratio).
-6. If an inverter continuous rating is known (either stated directly, or derived from solar capacity per rule 5) but no peak/surge rating is mentioned, estimate inverter_peak_rating as the continuous rating multiplied by 1.6 (typical inverter surge headroom).
-Return exactly this JSON:
+
+becomes
+
+```json
 {
-  "appliances": [{"name": "string", "quantity": int, "running_watts": int, "surge_watts": int, "priority": "Essential|Preferred|Optional", "estimated": bool}],
-  "required_hours": number,
-  "system_specs": {"battery_voltage": number|null, "battery_capacity_ah": number|null, "battery_count": number|null, "inverter_rating": number|null, "inverter_peak_rating": number|null}
+  "appliances": [
+    {
+      "name": "Fan",
+      "quantity": 3,
+      "running_watts": 75,
+      "surge_watts": 75,
+      "priority": "Preferred",
+      "estimated": true
+    }
+  ],
+  "required_hours": 4,
+  "system_specs": {
+    "battery_voltage": 12,
+    "battery_capacity_ah": 200,
+    "battery_count": 1,
+    "inverter_rating": 0,
+    "inverter_peak_rating": 0
+  }
 }
 ```
 
-**2. Backup planning advisor** — receives the already-calculated results
-(never touches the math itself) and produces the plain-language plan:
+The extractor:
 
-```
-You are an electrical backup planning assistant inside the Backup Buddy AI app.
-You will receive calculated electrical results (continuous load, surge load, usable energy, estimated runtime, inverter status, and removed appliances).
+- Uses a reference wattage database whenever possible.
+- Flags estimated wattages.
+- Never invents missing values.
+- Returns JSON only.
 
-Responsibilities:
-1. Explain results in simple, plain language.
-2. Flag any overload, low runtime, or surge capacity warnings.
-3. Write a practical appliance usage schedule fitting calculated runtime.
-4. Separate calculated facts from assumptions.
-5. Never change, override, or invent calculated numeric values.
-6. Explicitly state when appliance wattages were estimated.
-7. Recommend consulting a qualified electrician for installation work.
+---
 
-Return answer in exactly these six sections using Markdown headers (##):
-## System Assessment
-## Calculated Limitations
-## Recommended Usage Plan
-## Appliances to Reduce
-## Assumptions
-## Safety Notice
-```
+### 2. Backup Planning Advisor
 
-## Tools, services, and models used
+Receives only the calculated results and generates a user-friendly report including:
 
-- **Streamlit** — app framework and UI
-- **Pandas** — appliance table handling
-- **Plotly** — load contribution chart
-- **Google Gemini API** (`google-genai` SDK, model `gemini-2.0-flash` by
-  default, configurable via the `GEMINI_MODEL` secret) — both AI calls
-- **Streamlit Community Cloud** — hosting
+- System assessment
+- Runtime analysis
+- Load shedding recommendations
+- Optimisation advice
+- Safety warnings
+- Estimated energy savings
 
-## Known limitations / assumptions (stated up front, not hidden)
+The AI never performs electrical calculations itself.
 
-- Appliance wattages not in the reference table are AI estimates, not
-  measured values — always shown as such in the extracted table.
-- Surge load is modeled as: total continuous load of everything, plus the
-  single largest individual appliance's (surge - running) jump. This
-  approximates "one motor starts while everything else is already on,"
-  which is the realistic worst case, not literally every motor starting
-  simultaneously.
-- The solar-to-inverter sizing conversion (dividing solar DC watts by
-  1.20) is a standard rule-of-thumb inverter loading ratio, not a
-  substitute for an actual system design.
-- If a peak/surge inverter rating isn't given, either by AI extraction or
-  in the manual form, the app assumes it as 1.6x the continuous rating
-  (a typical surge headroom for common inverters). This is always
-  editable — the manual form's Peak Rating field stops auto-filling the
-  moment you type your own value into it.
-- This tool is a planning aid. It does not replace a licensed electrician
-  for wiring, installation, or safety-critical decisions — the app says
-  this explicitly in its own output.
+---
 
+## Technology Stack
 
+<<<<<<< Updated upstream
 
 ## How to run locally
+=======
+- **Python**
+- **Streamlit**
+- **Pandas**
+- **Plotly**
+- **OpenAI Python SDK**
+- **Groq API**
+- **Llama 3.3 70B Versatile**
+- **Streamlit Community Cloud**
+
+---
+
+## Assumptions & Limitations
+
+- Unknown appliance wattages are estimated and clearly marked.
+- Worst-case surge assumes one motor starts while every other appliance is already running.
+- Solar panel wattage can be interpreted as inverter rating when explicitly mentioned.
+- If no inverter peak rating is provided, the app assumes **1.6×** the continuous rating.
+- AI extraction may occasionally require manual correction.
+- This application is intended as a planning tool and does **not** replace professional electrical advice.
+
+---
+
+## Run Locally
+>>>>>>> Stashed changes
 
 ```bash
-git clone https://github.com/sobanmujtaba/BackupBuddyAI/
+git clone https://github.com/sobanmujtaba/BackupBuddyAI.git
+
 cd BackupBuddyAI
+
 pip install -r requirements.txt
 
-# Add your own Gemini API key (get one free at https://aistudio.google.com/apikey)
+# Create Streamlit secrets
 cp .streamlit/secrets.toml.example .streamlit/secrets.toml
-# then edit .streamlit/secrets.toml and paste your real key
+
+# Add your Groq API key
+GROQ_API_KEY="your_api_key"
 
 streamlit run app.py
 ```
+
+---
+
+## Project Structure
+
+```
+BackupBuddyAI/
+│
+├── app.py
+├── requirements.txt
+├── assets/
+├── .streamlit/
+│   ├── secrets.toml.example
+│   └── config.toml
+└── README.md
+```
+
+---
+
+## License
+
+This project is intended for educational and personal use.
+Electrical installations should always be verified by a qualified electrician.
