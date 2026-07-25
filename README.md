@@ -23,7 +23,7 @@ model invented.
 
 ## Live URL
 
-**[ADD YOUR DEPLOYED STREAMLIT CLOUD URL HERE]**
+**[backupbuddyai.streamlit.app(https://backupbuddyai.streamlit.app/)]**
 
 
 ## Features
