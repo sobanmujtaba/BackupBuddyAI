@@ -39,6 +39,9 @@ model invented.
   so it's never presented as a measured fact.
 - **Editable appliance table**: every AI-generated or manually-entered row
   can be corrected before anything is calculated.
+- **One-click demo scenario**: fills in a working appliance list and
+  hardware spec instantly, without any AI call, so the calculation and
+  load-shedding logic can be verified even without a Gemini API key.
 - **Backup runtime calculator**: usable battery energy and estimated
   runtime, computed from voltage, capacity (Ah), battery count, safe
   discharge depth (%), and inverter efficiency (%) — all of these are
@@ -137,6 +140,7 @@ Return answer in exactly these six sections using Markdown headers (##):
 - This tool is a planning aid. It does not replace a licensed electrician
   for wiring, installation, or safety-critical decisions — the app says
   this explicitly in its own output.
+
 
 
 ## How to run locally
