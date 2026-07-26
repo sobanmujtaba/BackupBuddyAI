@@ -286,7 +286,33 @@ REFERENCE_APPLIANCES = {
     "WiFi router": {"running_watts": 10, "surge_watts": 10},
     "Laptop": {"running_watts": 65, "surge_watts": 90},
     "Iron": {"running_watts": 1000, "surge_watts": 1000},
-    "Microwave oven": {"running_watts": 1200, "surge_watts": 1200}
+    "Microwave oven": {"running_watts": 1200, "surge_watts": 1200},
+    
+    "Window AC (1.5 ton)": {"running_watts": 1500, "surge_watts": 3300},
+    "Space heater": {"running_watts": 1500, "surge_watts": 1500},
+    "Electric geyser (water heater)": {"running_watts": 2000, "surge_watts": 2000},
+    "Air cooler": {"running_watts": 200, "surge_watts": 400},
+    "Exhaust fan": {"running_watts": 40, "surge_watts": 60},
+
+    "Deep freezer": {"running_watts": 300, "surge_watts": 1000},
+    "Electric kettle": {"running_watts": 1500, "surge_watts": 1500},
+    "Toaster": {"running_watts": 800, "surge_watts": 800},
+    "Coffee maker": {"running_watts": 1000, "surge_watts": 1000},
+    "Blender/Mixer": {"running_watts": 400, "surge_watts": 850},
+    "Air fryer": {"running_watts": 1500, "surge_watts": 1500},
+    "Dishwasher": {"running_watts": 1200, "surge_watts": 1200},
+
+    "Washing machine (top load)": {"running_watts": 500, "surge_watts": 1000},
+    "Washing machine (front load with heater)": {"running_watts": 2000, "surge_watts": 2000},
+    "Vacuum cleaner": {"running_watts": 1200, "surge_watts": 1200},
+
+    "Hair dryer": {"running_watts": 1500, "surge_watts": 1500},
+    
+    "Desktop computer (with monitor)": {"running_watts": 500, "surge_watts": 650},
+    "Gaming console (PS5/Xbox)": {"running_watts": 200, "surge_watts": 200},
+    "Security camera system (DVR + 4 Cams)": {"running_watts": 50, "surge_watts": 50},
+    "Inkjet printer": {"running_watts": 20, "surge_watts": 30},
+    "Laser printer": {"running_watts": 400, "surge_watts": 1000}
 }
 PRIORITY_LEVELS = ["Essential", "Preferred", "Optional"]
 INVERTER_PEAK_RATIO_DEFAULT = 1.6
