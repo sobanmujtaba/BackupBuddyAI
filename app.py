@@ -71,8 +71,8 @@ SAFE_CSS_AND_BG = """
             rgba(252,211,77,.05),
             rgba(99,102,241,.15)
         );
-        filter: blur(140px);
-        animation: aurora 20s linear infinite;
+        filter: blur(90px);
+        animation: aurora 30s linear infinite;
         pointer-events: none;
     }
 
@@ -85,7 +85,6 @@ SAFE_CSS_AND_BG = """
         position: relative;
         z-index: 10; 
         padding-top: 2rem !important;
-        max-width: 900px !important;
         animation: fadeIn 0.8s ease forwards;
     }
 
@@ -182,7 +181,7 @@ SAFE_CSS_AND_BG = """
     /* Telemetry Grid */
     .sensor-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        grid-template-columns: repeat(2, 1fr);
         gap: 16px;
     }
 
@@ -250,6 +249,9 @@ SAFE_CSS_AND_BG = """
         .glass-card {
             padding: 16px;
         }
+        .sensor-grid {
+            grid-template-columns: 1fr;
+        }
         .stButton button[data-testid="baseButton-primary"] {
             height: 50px;
             font-size: 16px;
@@ -266,8 +268,8 @@ st.markdown(SAFE_CSS_AND_BG, unsafe_allow_html=True)
 # ---------------------------------------------------------------------------
 st.markdown("""
 <div class="custom-header">
-  <div class="tag">System Telemetry</div>
-  <h1>Backup Intelligence</h1>
+  <div class="tag">Power Backup Planner</div>
+  <h1>Backup Buddy AI</h1>
   <p style="font-size: 16px; max-width: 600px; margin: 0 auto;">Describe your power system to predict runtime and optimal appliance distribution.</p>
 </div>
 """, unsafe_allow_html=True)
@@ -286,7 +288,33 @@ REFERENCE_APPLIANCES = {
     "WiFi router": {"running_watts": 10, "surge_watts": 10},
     "Laptop": {"running_watts": 65, "surge_watts": 90},
     "Iron": {"running_watts": 1000, "surge_watts": 1000},
-    "Microwave oven": {"running_watts": 1200, "surge_watts": 1200}
+    "Microwave oven": {"running_watts": 1200, "surge_watts": 1200},
+    
+    "Window AC (1.5 ton)": {"running_watts": 1500, "surge_watts": 3300},
+    "Space heater": {"running_watts": 1500, "surge_watts": 1500},
+    "Electric geyser (water heater)": {"running_watts": 2000, "surge_watts": 2000},
+    "Air cooler": {"running_watts": 200, "surge_watts": 400},
+    "Exhaust fan": {"running_watts": 40, "surge_watts": 60},
+
+    "Deep freezer": {"running_watts": 300, "surge_watts": 1000},
+    "Electric kettle": {"running_watts": 1500, "surge_watts": 1500},
+    "Toaster": {"running_watts": 800, "surge_watts": 800},
+    "Coffee maker": {"running_watts": 1000, "surge_watts": 1000},
+    "Blender/Mixer": {"running_watts": 400, "surge_watts": 850},
+    "Air fryer": {"running_watts": 1500, "surge_watts": 1500},
+    "Dishwasher": {"running_watts": 1200, "surge_watts": 1200},
+
+    "Washing machine (top load)": {"running_watts": 500, "surge_watts": 1000},
+    "Washing machine (front load with heater)": {"running_watts": 2000, "surge_watts": 2000},
+    "Vacuum cleaner": {"running_watts": 1200, "surge_watts": 1200},
+
+    "Hair dryer": {"running_watts": 1500, "surge_watts": 1500},
+    
+    "Desktop computer (with monitor)": {"running_watts": 500, "surge_watts": 650},
+    "Gaming console (PS5/Xbox)": {"running_watts": 200, "surge_watts": 200},
+    "Security camera system (DVR + 4 Cams)": {"running_watts": 50, "surge_watts": 50},
+    "Inkjet printer": {"running_watts": 20, "surge_watts": 30},
+    "Laser printer": {"running_watts": 400, "surge_watts": 1000}
 }
 PRIORITY_LEVELS = ["Essential", "Preferred", "Optional"]
 INVERTER_PEAK_RATIO_DEFAULT = 1.6
@@ -311,6 +339,38 @@ def inverter_status(cont, surge, rating, peak):
     if w_pct > 100: return "Overloaded", c_pct, s_pct
     elif w_pct > 85: return "Marginal", c_pct, s_pct
     return "Optimal", c_pct, s_pct
+
+def compute_load_shed_plan(appliances, target_runtime_h, usable_wh):
+    priority_rank = {"Optional": 0, "Preferred": 1, "Essential": 2}
+
+    shed_candidates = sorted(
+        appliances,
+        key=lambda a: (
+            priority_rank.get(a.get("priority", "Preferred"), 1),
+            -(a.get("quantity", 1) * a.get("running_watts", 0)),
+        ),
+    )
+
+    kept = list(appliances)
+    shed = []
+
+    for candidate in shed_candidates:
+        current_load = total_continuous_load(kept)
+        current_runtime = runtime_hours(usable_wh, current_load)
+        if current_runtime >= target_runtime_h:
+            break
+        kept = [a for a in kept if a is not candidate]
+        shed.append(candidate)
+
+    final_load = total_continuous_load(kept)
+    final_runtime = runtime_hours(usable_wh, final_load)
+
+    return {
+        "kept": kept,
+        "shed": shed,
+        "achieved_runtime_hours": final_runtime,
+        "target_met": final_runtime >= target_runtime_h,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -384,8 +444,12 @@ def get_ai_usage_plan(context):
         "## 2. Runtime Analysis\n"
         "Compare estimated runtime with required runtime. If short, say by how many hours.\n\n"
         "## 3. Recommended Load Shedding\n"
-        "List exactly which appliances to turn off, in which rooms, and what to keep running. "
-        "Respect priority levels (Essential > Preferred > Optional).\n\n"
+        "The 'load_shed_plan' field in the context below is already decided by a deterministic "
+        "calculation, not by you. Do not choose different appliances. Simply explain, in plain "
+        "language, why those specific appliances in 'turn_off' were chosen over the ones in "
+        "'keep_running', referencing priority levels and wattage. If 'target_met_by_shedding' is "
+        "false, say clearly that shedding alone was not enough and the household needs more "
+        "battery capacity or fewer Essential appliances.\n\n"
         "## 4. Optimisation Tips\n"
         "Practical advice to extend runtime without turning off more devices.\n\n"
         "## 5. Safety Warning\n"
@@ -438,7 +502,7 @@ with st.sidebar:
         st.toast("Demo loaded! Scroll down to see results.")
         st.rerun()
 
-    if st.button("🗑️ Clear All"):
+    if st.button("Clear All"):
         for key in list(st.session_state.keys()):
             del st.session_state[key]
         st.rerun()
@@ -464,7 +528,7 @@ desc = st.text_area(
 if st.button("Analyse my system", type="primary"):
     if desc.strip():
         with st.status("Analysing your backup system...", expanded=True) as status:
-            st.write("🔍 Extracting appliances and hardware specs...")
+            st.write("Extracting appliances and hardware specs...")
             try:
                 res = extract_appliances_with_ai(desc)
                 if res:
@@ -481,7 +545,6 @@ if st.button("Analyse my system", type="primary"):
                     st.session_state.show_results = True
 
                     st.write("Calculating load and runtime...")
-                    # small delay for UX effect
                     import time; time.sleep(0.3)
                     status.update(label="Analysis complete!", state="complete", expanded=False)
                     st.toast("System analysed! Review your configuration below.")
@@ -491,139 +554,190 @@ if st.button("Analyse my system", type="primary"):
             except Exception as e:
                 status.update(label="Analysis failed", state="error")
                 st.error(f"Could not process description: {e}")
-                st.toast("Analysis failed. Check your API key or internet connection.", icon="❌")
+                st.toast("Analysis failed. Check your API key or internet connection.")
     else:
         st.warning("Please enter a description of your backup system.")
 
 
 # ---------------------------------------------------------------------------
-# HARDWARE & APPLIANCE CONFIGURATION
+# MAIN LAYOUT (TWO COLUMNS)
 # ---------------------------------------------------------------------------
-st.markdown("### System Configuration")
+col_config, col_results = st.columns([1.1, 1], gap="large")
 
-with st.container():
-    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-    st.markdown('<div class="section-label">Hardware Specifications</div>', unsafe_allow_html=True)
-    
-    c1, c2, c3, c4 = st.columns(4)
-    bv = c1.number_input("Battery (V)", value=float(st.session_state.get("bv", 12.0)))
-    bc = c2.number_input("Capacity (Ah)", value=float(st.session_state.get("bc", 200.0)))
-    count = c3.number_input("Battery Count", value=int(st.session_state.get("count", 1)))
-    req_h = c4.number_input("Target (Hrs)", min_value=0.1, value=max(0.1, float(st.session_state.get("required_hours", 4.0))))
-    
-    c5, c6, c7, c8 = st.columns(4)
-    ir = c5.number_input("Inverter (W)", value=float(st.session_state.get("ir", 1200.0)), key="ir", on_change=_sync_peak_default)
-    ip = c6.number_input("Peak (W)", value=float(st.session_state.get("ip", 1920.0)), key="ip", on_change=_mark_peak_touched)
-    discharge = c7.slider("Discharge (%)", 10, 100, 80)
-    efficiency = c8.slider("Efficiency (%)", 50, 100, 85)
-    st.markdown('</div>', unsafe_allow_html=True)
+with col_config:
+    # ---------------------------------------------------------------------------
+    # HARDWARE & APPLIANCE CONFIGURATION
+    # ---------------------------------------------------------------------------
+    st.markdown("### System Configuration")
 
-with st.container():
-    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-    st.markdown('<div class="section-label">Appliance Load Profile</div>', unsafe_allow_html=True)
-    
-    if st.session_state.appliances:
-        edited = st.data_editor(
-            st.session_state.appliances,
-            num_rows="dynamic",
-            use_container_width=True,
-            hide_index=True,
-            column_config={"priority": st.column_config.SelectboxColumn(options=PRIORITY_LEVELS)},
-            height=min(35 * len(st.session_state.appliances) + 38, 400)  # adapt height to content
-        )
-        st.session_state.appliances = edited.to_dict("records") if hasattr(edited, "to_dict") else edited
-    else:
-        st.caption("No appliances added yet. Type your requirements above and press 'Analyse my system'.")
-    
-    col_btn1, col_btn2 = st.columns([1, 1])
-    with col_btn1:
-        if st.button("Recalculate", use_container_width=True):
-            st.session_state.show_results = True
-            st.rerun()
-    with col_btn2:
-        if st.button("Clear Appliances", use_container_width=True):
-            st.session_state.appliances = []
-            st.session_state.show_results = False
-            st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
-
-
-# ---------------------------------------------------------------------------
-# RESULTS & TELEMETRY
-# ---------------------------------------------------------------------------
-if st.session_state.get("show_results") and st.session_state.appliances:
-    if bv <= 0 or bc <= 0 or count <= 0 or ir <= 0:
-        st.error("Hardware specifications incomplete. Please enter values greater than zero.")
-    else:
-        st.markdown("### Telemetry & Diagnostics")
-        
-        wh = usable_energy_wh(bv, bc, count, discharge, efficiency)
-        cont = total_continuous_load(st.session_state.appliances)
-        surge = total_surge_load(st.session_state.appliances)
-        rt = runtime_hours(wh, cont)
-        status, cpct, spct = inverter_status(cont, surge, ir, ip)
-        rt_display = "∞" if rt == float('inf') else f"{rt:.1f}"
-        
-        st.markdown(f"""
-        <div class="glass-card">
-            <div class="section-label">Real-time Load Simulation</div>
-            <div class="sensor-grid">
-                <div class="sensor-item">
-                    <span class="sensor-value">{cont:.0f} W</span>
-                    <span class="sensor-label">Continuous Load</span>
-                </div>
-                <div class="sensor-item">
-                    <span class="sensor-value" style="color:var(--hero-sub)">{surge:.0f} W</span>
-                    <span class="sensor-label">Surge Load</span>
-                </div>
-                <div class="sensor-item">
-                    <span class="sensor-value">{wh:.0f} Wh</span>
-                    <span class="sensor-label">Usable Energy</span>
-                </div>
-                <div class="sensor-item">
-                    <span class="sensor-value" style="color: {'var(--red)' if rt < req_h else 'var(--foreground)'}">{rt_display} hrs</span>
-                    <span class="sensor-label">Est. Runtime</span>
-                </div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
+    with st.container():
         st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-        st.markdown('<div class="section-label">Load Distribution</div>', unsafe_allow_html=True)
-        df = pd.DataFrame([{"App": a["name"], "Load": a["quantity"]*a["running_watts"]} for a in st.session_state.appliances])
-        fig = px.pie(df, names="App", values="Load", hole=0.7, color_discrete_sequence=['#6366f1', '#a855f7', '#fcd34d', '#4a4d63', '#2a2b38'])
+        st.markdown('<div class="section-label">Hardware Specifications</div>', unsafe_allow_html=True)
         
-        fig.update_layout(
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
-            margin=dict(l=0, r=0, b=0, t=0),
-            font_color="white",
-            showlegend=True
-        )
-        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+        c1, c2 = st.columns(2)
+        bv = c1.number_input("Battery (V)", value=float(st.session_state.get("bv", 12.0)))
+        bc = c2.number_input("Capacity (Ah)", value=float(st.session_state.get("bc", 200.0)))
+
+        c3, c4 = st.columns(2)
+        count = c3.number_input("Battery Count", value=int(st.session_state.get("count", 1)))
+        req_h = c4.number_input("Target (Hrs)", min_value=0.1, value=max(0.1, float(st.session_state.get("required_hours", 4.0))))
+        
+        c5, c6 = st.columns(2)
+        ir = c5.number_input("Inverter (W)", value=float(st.session_state.get("ir", 1200.0)), key="ir", on_change=_sync_peak_default)
+        ip = c6.number_input("Peak (W)", value=float(st.session_state.get("ip", 1920.0)), key="ip", on_change=_mark_peak_touched)
+        
+        c7, c8 = st.columns(2)
+        discharge = c7.slider("Discharge (%)", 10, 100, 80)
+        efficiency = c8.slider("Efficiency (%)", 50, 100, 85)
         st.markdown('</div>', unsafe_allow_html=True)
 
+    with st.container():
         st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-        st.markdown('<div class="section-label" style="color: var(--purple) !important;">AI Recommendations</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-label">Appliance Load Profile</div>', unsafe_allow_html=True)
         
-        calc_context = {
-            "inverter_status": status,
-            "continuous_load_w": cont,
-            "usable_energy_wh": round(wh, 1),
-            "estimated_runtime_hours": round(rt, 2) if rt != float('inf') else "Infinite",
-            "required_runtime_hours": req_h,
-        }
+        if st.session_state.appliances:
+            edited = st.data_editor(
+                st.session_state.appliances,
+                num_rows="dynamic",
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "priority": st.column_config.SelectboxColumn(options=PRIORITY_LEVELS),
+                    "name": st.column_config.TextColumn("Appliance"),
+                    "quantity": st.column_config.NumberColumn("Qty", min_value=0, step=1),
+                    "running_watts": st.column_config.NumberColumn("Running (W)", min_value=0),
+                    "surge_watts": st.column_config.NumberColumn("Surge (W)", min_value=0),
+                    "estimated": st.column_config.CheckboxColumn("AI Estimated?"),
+                },
+                height=min(35 * len(st.session_state.appliances) + 38, 400)
+            )
+            st.session_state.appliances = edited.to_dict("records") if hasattr(edited, "to_dict") else edited
+            st.caption("Tick 'AI Estimated?' off once you've confirmed a wattage against the appliance's actual label.")
+        else:
+            st.caption("No appliances added yet. Type your requirements above and press 'Analyse my system'.")
         
-        if st.button("Generate Action Plan", use_container_width=True):
-            with st.spinner("Synthesizing actionable load distribution plan..."):
-                try:
-                    plan = get_ai_usage_plan(calc_context)
-                    st.markdown(plan)
-                    st.toast("Action plan ready!")
-                except Exception as e:
-                    st.error(str(e))
-                    st.toast("Failed to generate plan.", icon="❌")
+        col_btn1, col_btn2 = st.columns([1, 1])
+        with col_btn1:
+            if st.button("Recalculate", use_container_width=True):
+                st.session_state.show_results = True
+                st.rerun()
+        with col_btn2:
+            if st.button("Clear Appliances", use_container_width=True):
+                st.session_state.appliances = []
+                st.session_state.show_results = False
+                st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
+
+
+with col_results:
+    # ---------------------------------------------------------------------------
+    # RESULTS & TELEMETRY
+    # ---------------------------------------------------------------------------
+    if st.session_state.get("show_results") and st.session_state.appliances:
+        if bv <= 0 or bc <= 0 or count <= 0 or ir <= 0:
+            st.error("Hardware specifications incomplete. Please enter values greater than zero.")
+        else:
+            st.markdown("### Your Results")
+            
+            wh = usable_energy_wh(bv, bc, count, discharge, efficiency)
+            cont = total_continuous_load(st.session_state.appliances)
+            surge = total_surge_load(st.session_state.appliances)
+            rt = runtime_hours(wh, cont)
+            status, cpct, spct = inverter_status(cont, surge, ir, ip)
+            rt_display = "∞" if rt == float('inf') else f"{rt:.1f}"
+            
+            st.markdown(f"""
+<div class="glass-card">
+<div class="section-label">Load and Runtime (calculated from your inputs)</div>
+<div class="sensor-grid">
+<div class="sensor-item">
+<span class="sensor-value">{cont:.0f} W</span>
+<span class="sensor-label">Continuous Load</span>
+</div>
+<div class="sensor-item">
+<span class="sensor-value" style="color:var(--hero-sub)">{surge:.0f} W</span>
+<span class="sensor-label">Surge Load</span>
+</div>
+<div class="sensor-item">
+<span class="sensor-value">{wh:.0f} Wh</span>
+<span class="sensor-label">Usable Energy</span>
+</div>
+<div class="sensor-item">
+<span class="sensor-value" style="color: {'var(--red)' if rt < req_h else 'var(--foreground)'}">{rt_display} hrs</span>
+<span class="sensor-label">Est. Runtime</span>
+</div>
+</div>
+</div>
+""", unsafe_allow_html=True)
+
+            shed_plan = None
+            if rt < req_h:
+                shed_plan = compute_load_shed_plan(st.session_state.appliances, req_h, wh)
+
+            if shed_plan:
+                kept_names = ", ".join(a["name"] for a in shed_plan["kept"]) or "none"
+                shed_names = ", ".join(a["name"] for a in shed_plan["shed"]) or "none"
+                achieved = shed_plan["achieved_runtime_hours"]
+                achieved_display = "∞" if achieved == float('inf') else f"{achieved:.1f}"
+                met_line = (
+                    f"Turning these off gets you to {achieved_display} hrs, meeting your {req_h:.1f} hr target."
+                    if shed_plan["target_met"]
+                    else f"Even after turning these off, you only reach {achieved_display} hrs. "
+                         f"Your {req_h:.1f} hr target needs more battery capacity or a smaller Essential load, "
+                         f"not just switching off Preferred/Optional appliances."
+                )
+                st.markdown(f"""
+<div class="glass-card">
+<div class="section-label" style="color: {'var(--red)' if not shed_plan['target_met'] else 'var(--gold)'} !important;">
+Suggested Load Shedding (calculated, not AI guesswork)
+</div>
+<p style="margin-bottom:8px;"><strong style="color:var(--foreground) !important;">Turn off:</strong> {shed_names}</p>
+<p style="margin-bottom:8px;"><strong style="color:var(--foreground) !important;">Keep running:</strong> {kept_names}</p>
+<p style="font-size:13px;">{met_line}</p>
+</div>
+""", unsafe_allow_html=True)
+
+            st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+            st.markdown('<div class="section-label">Load Distribution</div>', unsafe_allow_html=True)
+            df = pd.DataFrame([{"App": a["name"], "Load": a["quantity"]*a["running_watts"]} for a in st.session_state.appliances])
+            fig = px.pie(df, names="App", values="Load", hole=0.7, color_discrete_sequence=['#6366f1', '#a855f7', '#fcd34d', '#4a4d63', '#2a2b38'])
+            
+            fig.update_layout(
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                margin=dict(l=0, r=0, b=0, t=0),
+                font_color="white",
+                showlegend=True
+            )
+            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+            st.markdown('</div>', unsafe_allow_html=True)
+
+            st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+            st.markdown('<div class="section-label" style="color: var(--purple) !important;">AI Recommendations</div>', unsafe_allow_html=True)
+            
+            calc_context = {
+                "inverter_status": status,
+                "continuous_load_w": cont,
+                "usable_energy_wh": round(wh, 1),
+                "estimated_runtime_hours": round(rt, 2) if rt != float('inf') else "Infinite",
+                "required_runtime_hours": req_h,
+                "load_shed_plan": {
+                    "turn_off": [a["name"] for a in shed_plan["shed"]] if shed_plan else [],
+                    "keep_running": [a["name"] for a in shed_plan["kept"]] if shed_plan else [a["name"] for a in st.session_state.appliances],
+                    "target_met_by_shedding": shed_plan["target_met"] if shed_plan else True,
+                },
+            }
+            
+            if st.button("Generate Action Plan", use_container_width=True):
+                with st.spinner("Synthesizing actionable load distribution plan..."):
+                    try:
+                        plan = get_ai_usage_plan(calc_context)
+                        st.markdown(plan)
+                        st.toast("Action plan ready!")
+                    except Exception as e:
+                        st.error(str(e))
+                        st.toast("Failed to generate plan.")
+            st.markdown('</div>', unsafe_allow_html=True)
 
 # ---------------------------------------------------------------------------
 # FOOTER

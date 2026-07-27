@@ -15,11 +15,9 @@ Instead of relying on guesswork or sales recommendations, the app calculates:
 
 All electrical calculations (load, runtime, inverter sizing, safety checks, and load shedding) are performed using deterministic Python logic.
 
-<<<<<<< Updated upstream
 [backupbuddyai.streamlit.app](https://backupbuddyai.streamlit.app/)
-=======
+
 Artificial Intelligence is **only** used to:
->>>>>>> Stashed changes
 
 - Extract structured appliance and hardware information from natural language
 - Explain the already-calculated results in plain English
@@ -36,7 +34,6 @@ https://backupbuddyai.streamlit.app/
 
 ## Features
 
-<<<<<<< Updated upstream
 - **Two ways to add appliances**: describe them in a sentence ("3 fans, a
   fridge, and WiFi for 4 hours, on a 12V 200Ah battery") or add rows
   manually.
@@ -69,25 +66,6 @@ https://backupbuddyai.streamlit.app/
   practical schedule, generated from the calculated numbers.
 - **Charts**: load contribution per appliance, plus live status readouts
   for continuous/surge draw as a percentage of inverter rating.
-=======
-- Add appliances either manually or by describing them in natural language.
-- AI extracts appliance information, battery specifications, and inverter details.
-- Automatically estimates appliance wattages using a reference database where exact values are unavailable.
-- Editable appliance table before calculations.
-- One-click demo scenario that works without an API key.
-- Battery runtime calculator using:
-  - Battery voltage
-  - Battery capacity (Ah)
-  - Number of batteries
-  - Depth of discharge
-  - Inverter efficiency
-- Continuous and surge load calculations.
-- Inverter utilisation and overload detection.
-- Intelligent priority-based load shedding.
-- AI-generated usage and optimisation plan.
-- Interactive load distribution charts.
-- Mobile-friendly responsive interface.
->>>>>>> Stashed changes
 
 ---
 
@@ -158,9 +136,9 @@ The AI never performs electrical calculations itself.
 
 ---
 
+## Screenshot
+![Demo Image](./assets/demo.jpg)
 ## Technology Stack
-
-<<<<<<< Updated upstream
 
 ## How to run locally
 =======
@@ -187,7 +165,6 @@ The AI never performs electrical calculations itself.
 ---
 
 ## Run Locally
->>>>>>> Stashed changes
 
 ```bash
 git clone https://github.com/sobanmujtaba/BackupBuddyAI.git
