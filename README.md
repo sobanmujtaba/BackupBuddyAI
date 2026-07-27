@@ -141,7 +141,6 @@ The AI never performs electrical calculations itself.
 ## Technology Stack
 
 ## How to run locally
-=======
 - **Python**
 - **Streamlit**
 - **Pandas**
